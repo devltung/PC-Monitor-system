@@ -63,7 +63,7 @@ B3: Cài đặt các thư viện cần thiết (pip)
 - Giao diện dòng lệnh (Terminal) màu đen sẽ hiện ra. Bạn gõ lệnh sau rồi nhấn Enter:
 
 
-	pip install --user requests
+		pip install --user requests
 	
 	
 Đợi hệ thống chạy cài đặt xong xuôi thì bạn có thể tắt tab Bash này đi.
@@ -88,14 +88,14 @@ B5: Cấu hình lại file WSGI của PythonAnywhere
 - Trình chỉnh sửa code sẽ hiện ra. Bạn kéo xuống gần cuối file, tìm các dòng có nội dung tương tự như sau:
 
 
-	# import flask app but need to call it "application" for WSGI to work
-	from flask_app import app as application  # <-- TÌM DÒNG NÀY
+		# import flask app but need to call it "application" for WSGI to work
+		from flask_app import app as application  # <-- TÌM DÒNG NÀY
 
 
 - Sửa chữ flask_app thành app (vì file của bạn là app.py). Dòng code sau khi sửa sẽ trông như thế này:
 
 
-	from app import app as application
+		from app import app as application
 	
 	
 - Bấm nút Save ở góc trên bên phải để lưu lại.
@@ -117,22 +117,22 @@ B6: Khởi chạy và kiểm tra kết quả
 
 - Tại gần cuối file dòng 233 :
 
-    URL = "http://username.pythonanywhere.com/update-status"
-
+  	  URL = "http://username.pythonanywhere.com/update-status"
+	
 - Thay chỗ "username" thành tên tài khoản của bạn và lưu file lại
 
 - Rồi chạy file bằng cách click đúp vào file hoặc mở cmd tại folder đó và chạy lệnh
 
-	python info.pyw
+		python info.pyw
 	
 - Trên web của bạn sẽ phát hiện thấy máy tính của bạn ấn vào nút "Bảng điều khiển" để điều khiển máy
 
-#### 4. Cách chạy file info.pyw ẩn mỗi khi khởi động máy
+## 4. Cách chạy file info.pyw ẩn mỗi khi khởi động máy
 - Tại folder client chuột phải vào file info.pyw rồi chọn "Show more options" và chọn "Create shortcut" 
 - Bạn sẽ nhận được 1 file có tên là "info.pyw - Shortcut" 
 - Dùng tổ hợp phín Win + r và nhập:
 
-	shell:startup
+		shell:startup
 	
 - Và ấn "OK" folder startup sẽ được mở lên, copy file "info.pyw - Shortcut" lúc nãy vào folder này
 - Lần sau khi bạn mở máy file info.pyw sẽ tự động được mở và chạy ngầm
