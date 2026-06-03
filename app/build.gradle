@@ -1,0 +1,20 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'com.devtung.monitor'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "com.devtung.monitor"
+        minSdk 21
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
