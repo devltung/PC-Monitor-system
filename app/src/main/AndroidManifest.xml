@@ -8,6 +8,7 @@
     <application
         android:allowBackup="true"
         android:label="Devtung Monitor"
+        android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         
         <activity android:name=".MainActivity"
