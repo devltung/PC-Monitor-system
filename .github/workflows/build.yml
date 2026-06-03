@@ -18,17 +18,61 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
+    # 🔥 BƯỚC THẦN THÁNH: Tự động dọn dẹp và ép tạo cấu trúc chuẩn tại chỗ chạy ngầm
+    - name: Auto Fix Android Project Structure
+      run: |
+        rm -f settings.gradle build.gradle
+        mkdir -p android_app/app/src/main/java/com/devtung/monitor
+        
+        # 1. Tạo file settings.gradle chuẩn
+        echo "rootProject.name = 'Devtung Monitor'" > android_app/settings.gradle
+        echo "include ':app'" >> android_app/settings.gradle
+        
+        # 2. Tạo file build.gradle gốc
+        cat << 'EOF' > android_app/build.gradle
+        buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.1.1' }
+        }
+        allprojects {
+            repositories { google(); mavenCentral() }
+        }
+        EOF
+
+        # 3. Tạo file app/build.gradle
+        cat << 'EOF' > android_app/app/build.gradle
+        apply plugin: 'com.android.application'
+        android {
+            namespace 'com.devtung.monitor'
+            compileSdk 33
+            defaultConfig {
+                applicationId "com.devtung.monitor"
+                minSdk 21
+                targetSdk 33
+                versionCode 1
+                versionName "1.0"
+            }
+        }
+        EOF
+
+        # 4. Di chuyển các file code Java/XML của bạn vào đúng chỗ
+        # Tìm và đưa AndroidManifest vào đúng vị trí của dự án mới tạo
+        find . -name "AndroidManifest.xml" -exec cp {} android_app/app/src/main/ \; || true
+        # Tìm và đưa các file Java vào đúng package
+        find . -name "MainActivity.java" -exec cp {} android_app/app/src/main/java/com/devtung/monitor/ \; || true
+        find . -name "MonitorService.java" -exec cp {} android_app/app/src/main/java/com/devtung/monitor/ \; || true
+
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
         gradle-version: 8.1.1
 
-    # 🔥 ĐÃ SỬA: Thêm lệnh định vị tìm module gốc và tự tạo cấu trúc Wrapper nếu thiếu
+    # Đứng từ thư mục android_app được ép cấu hình chuẩn để build
     - name: Build Debug APK
       run: |
-        gradle assembleDebug || gradle :app:assembleDebug
+        cd android_app
+        gradle assembleDebug
 
-    # 🔥 ĐÃ SỬA: Cấu hình tìm file APK linh hoạt (Quét mọi ngóc ngách để tìm đúng file app-debug.apk)
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
