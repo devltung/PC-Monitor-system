@@ -111,7 +111,7 @@ B6: Khởi chạy và kiểm tra kết quả
 
 ## 3. Khởi chạy Client
 
-- Cấu hình lại biến URL trong file client/info.pyw để trỏ về địa chỉ Server của bạn:
+- Cấu hình lại biến URL trong file client/info.pyw ở folder setup để trỏ về địa chỉ Server của bạn:
 
 - Cấu hình file info.pyw như sau, mở file lên
 
